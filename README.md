@@ -1,1 +1,1 @@
-# Srushti
+Assignments of Machine Learning.
