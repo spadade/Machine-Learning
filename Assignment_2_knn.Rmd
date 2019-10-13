@@ -1,0 +1,196 @@
+---
+title: "ML_Assignment_2"
+author: "SrushtiP"
+date: "10/08/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Libraries required for the assignment.
+
+```{r}
+library(ISLR)
+library(caret)
+library(dummies)
+library(FNN)
+library(gmodels)
+options(warn=-1)
+```
+
+To read the data
+
+```{r}
+UniversalBank <- read.csv("UniversalBank.csv")
+```
+
+Create dummy for the Education column
+
+```{r}
+Education_Dummy <- dummy(UniversalBank$Education)
+
+temp<- cbind(UniversalBank, Education_Dummy)
+
+UniversalBank_Object <- temp[c(-1,-5, -8)]
+head(UniversalBank_Object)
+```
+
+Set the seed for partiotion in an orderly manner
+
+```{r}
+set.seed(15)
+```
+
+Partition Data in 60/40 % format
+
+```{r}
+Training_Data_Index <- createDataPartition(UniversalBank_Object$Age, p = 0.6, list = FALSE)
+
+Training_Data <- UniversalBank_Object[Training_Data_Index,]
+dim(Training_Data)
+
+Validation_Data <- UniversalBank_Object[-Training_Data_Index,]
+dim(Validation_Data)
+```
+
+Normalization
+
+```{r}
+norm.values <- preProcess(Training_Data, method = c ("center", "scale"))
+
+train.norm.df <- predict(norm.values, Training_Data)
+
+Valid.norm.df <- predict(norm.values, Validation_Data)
+
+summary(train.norm.df)
+summary(Valid.norm.df)
+```
+
+Differentiate Predictors and Prediction data 
+
+```{r}
+Train_Data <- train.norm.df[,-7]
+Train_Outcome <- factor(Training_Data[,7], levels = c(0,1), labels = c("Deny","Accept"))
+
+Valid_Data <- Valid.norm.df[,-7]
+Valid_Outcome <- factor(Validation_Data[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+```
+
+Apply KNN with k value as 1 for Validation and Test data
+
+```{r}
+knn_obj <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=1, prob = TRUE)
+View(knn_obj)
+```
+
+Q. 1.)
+Test KNN on test data
+
+```{r}
+Test_Data <- c(40, 10, 84, 2, 2, 0, 0, 0, 1, 1, 0, 1, 0)
+
+knn_test <- knn(Train_Data, Test_Data, cl=Train_Outcome, k=1,prob = TRUE)
+knn_test
+```
+
+Q. 2.)
+Hypertuning
+
+```{r}
+accuracy_data <- data.frame(k = seq(1,55,1), accuracy = rep (0, 55))
+
+for(i in 1:55){
+  knn_pred <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=i)
+  accuracy_data[i,2] <- confusionMatrix(knn_pred, Valid_Outcome)$overall[1]
+}
+accuracy_data
+
+best_k <- accuracy_data[which.max(accuracy_data$accuracy),]
+best_k
+```
+
+Q. 3.)
+Create Confusion Matrix
+
+```{r}
+knn_test_k <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=best_k$k, prob = TRUE)
+View(knn_test_k)
+
+CrossTable(x = Valid_Outcome, y = knn_test_k, prop.chisq = FALSE)
+```
+
+Accuracy is 96.64 %
+
+Q. 4.)
+Test the knn model using hypertuned k value for tet data.
+
+```{r}
+BEST_KNN_TEST <- knn(Train_Data, Test_Data, cl=Train_Outcome, k=, prob = TRUE)
+BEST_KNN_TEST
+```
+
+Q. 5.)
+Partition Data i 50-30-20 % format
+
+```{r}
+Test_Data_Index_2 <- createDataPartition(UniversalBank_Object$Age, p = 0.2, list = FALSE)
+
+Testing_Data_2 <- UniversalBank_Object[Test_Data_Index_2,]
+
+Travel_Data_2 <- UniversalBank_Object[-Test_Data_Index_2,]
+
+Training_Data_Index_2 <- createDataPartition(Travel_Data_2$Age, p = 0.625, list = FALSE)
+
+Training_Data_2 <- Travel_Data_2[Training_Data_Index_2,]
+
+Validation_Data_2 <- Travel_Data_2[-Training_Data_Index_2,]
+
+dim(Training_Data_2)
+dim(Validation_Data_2)
+dim(Testing_Data_2)
+```
+
+Normalization
+
+```{r}
+norm.values <- preProcess(Training_Data_2, method = c ("center", "scale"))
+
+train.norm.df_2 <- predict(norm.values, Training_Data_2)
+
+Valid.norm.df_2 <- predict(norm.values, Validation_Data_2)
+
+test.norm.df_2 <- predict(norm.values, Testing_Data_2)
+```
+
+Differentiate Predictors and Prediction data 
+
+```{r}
+Train_Data_2 <- train.norm.df_2[,-7]
+Train_Outcome_2 <- factor(Training_Data_2[,7], levels = c(0,1), labels = c("Deny","Accept"))
+
+Valid_Data_2 <- Valid.norm.df_2[,-7]
+Valid_Outcome_2 <- factor(Validation_Data_2[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+
+Test_Data_2 <- test.norm.df_2[,-7]
+Test_Outcome_2<- factor(Testing_Data_2[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+```
+
+Apply KNN on Training and Validation set
+
+```{r}
+knn_Validation <- knn(Train_Data_2, Valid_Data_2, cl=Train_Outcome_2, k=best_k$k, prob = TRUE)
+View(knn_obj)
+
+CrossTable(x = Valid_Outcome_2, y = knn_Validation, prop.chisq = FALSE)
+
+knn_Testing <- knn(Train_Data_2, Test_Data_2, cl=Train_Outcome_2, k=best_k$k,prob = TRUE)
+knn_test
+
+CrossTable(x = Test_Outcome_2, y = knn_Testing, prop.chisq = FALSE)
+```
+
+The Accuracy for the Validation Data is: 95.79439252336449 %
+
+The Accuracy for the Testing Data is: 95.004995004995 %
