@@ -1,0 +1,271 @@
+---
+title: "Machine Learning Assignement 2 - kNN"
+author: "SrushtiP"
+date: "10/21/2019"
+output: html_document
+---
+Problem Statement:
+
+Universal bank is a young bank growing rapidly in terms of overall customer acquisition. The majority of these customers are liability customers (depositors) with varying sizes of relationship with the bank. The customer base of asset customers (borrowers) is quite small, and the bank is interested in expanding this base  rapidly in more loan business. In particular, it wants to explore ways of converting its liability customers to personal loan customers.
+
+A campaign that the bank ran last year for liability customers showed a healthy conversion rate of over 9% success. This has encouraged the retail marketing department to devise smarter campaigns with better target marketing. The goal is to use k-NN to predict whether a new customer will accept a loan offer. This will serve as the basis for the design of a new campaign.
+
+
+The file UniversalBank.csv contains data on 5000 customers. The data include customer demographic information (age, income, etc.), the customer’s relationship with the bank (mortgage, securities account, etc.), and the customer response to the last personal loan campaign (Personal Loan). Among these 5000 customers, only 480 (= 9.6%) accepted the personal loan that was offered to them in the earlier campaign.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+  * Libraries required for the assignment. 
+
+```{r}
+library(ISLR)
+library(caret)
+library(dummies)
+library(FNN)
+library(gmodels)
+options(warn=-1)
+```
+
+  * To read the data
+
+```{r}
+UniversalBank <- read.csv("UniversalBank.csv")
+```
+
+  * Create dummy for the Education column as Education_1, Education_2, Education_3 by using Dummies package
+
+```{r}
+#Education_Dummy <- dummy(UniversalBank$Education)
+
+#temp<- cbind(UniversalBank, Education_Dummy)
+
+# OR as it works the same.
+
+UniversalBank[["Education"]] <- factor(UniversalBank$Education, labels = c("Education_1", "Education_2", "Education_3"))
+
+Dummy<- dummyVars("~Education", data=UniversalBank)
+
+Education_Dummy_2 <- predict(Dummy,newdata=UniversalBank)
+
+temp_2<- cbind(UniversalBank, Education_Dummy_2)
+```
+
+  * Removing the attributes ID and ZIPCODE from the dataset and also the Original Education column as we have new dummy variables for the Education.
+
+```{r}
+UniversalBank_Object <- temp_2[c(-1,-5, -8)]
+
+head(UniversalBank_Object)
+```
+
+  * Set the seed for partition of data in an orderly manner
+
+```{r}
+set.seed(15)
+```
+
+  * Partition the data into training (60%) and validation (40%) sets.
+
+```{r}
+Training_Data_Index <- createDataPartition(UniversalBank_Object$Age, p = 0.6, list = FALSE)
+
+Training_Data <- UniversalBank_Object[Training_Data_Index,]
+dim(Training_Data)
+
+Validation_Data <- UniversalBank_Object[-Training_Data_Index,]
+dim(Validation_Data)
+```
+
+  * After the partition of the data we need to Normalize the data. Here, we are normalizing the data using Center and Scale transformation in with the transformation takes place using Mean and Standard Deviation. 
+
+  * Normalization:
+
+```{r}
+norm.values <- preProcess(Training_Data, method = c ("center", "scale"))
+
+train.norm.df <- predict(norm.values, Training_Data)
+
+Valid.norm.df <- predict(norm.values, Validation_Data)
+
+Total.norm.df <- predict(norm.values, UniversalBank_Object)
+
+summary(train.norm.df)
+summary(Valid.norm.df)
+summary(Total.norm.df)
+```
+
+  * Differentiate Predictors and Prediction data. Here the Predictive data is the Personal.Loan Variable and factorising the values as Deny and Accept instead of 0 and 1, whereas the Predictors are all the other variables from the dataset. 
+
+```{r}
+Train_Data <- train.norm.df[,-7]
+Train_Outcome <- factor(Training_Data[,7], levels = c(0,1), labels = c("Deny","Accept"))
+
+Valid_Data <- Valid.norm.df[,-7]
+Valid_Outcome <- factor(Validation_Data[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+
+Total_Data <- Total.norm.df[,-7]
+Total_Outcome <- factor(UniversalBank_Object[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+```
+
+  * Apply KNN with k value as 1 for Validation and Test data and using the FNN library. Here we give an input of training data with its Output and check the outputs using validtion data after the model is built.
+
+```{r}
+knn_obj <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=1, prob = TRUE)
+View(knn_obj)
+```
+
+Q. 1.) Consider the following customer:
+Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1, and Credit Card = 1. Perform a k-NN classification with all predictors except ID and ZIP code using k = 1. Remember to transform categorical predictors with more than two categories into dummy variables first. Specify the success class as 1 (loan acceptance), and use the default cutoff value of 0.5. How would this customer be classified?
+
+  * Test KNN model with k=1 on test data and default cutoff as 0.5
+
+```{r}
+Test_Data <- c(40, 10, 84, 2, 2, 0, 0, 0, 1, 1, 0, 1, 0)
+
+knn_test <- knn(Train_Data, Test_Data, cl=Train_Outcome, k=1,prob = TRUE)
+knn_test
+```
+
+Using the k=1 the prediction for the test data is that the Customer will have the loan ACCEPTED
+
+Q. 2.) What is a choice of k that balances between overfitting and ignoring the predictor information?
+
+  * To get the best choie for the k value Hypertuning is required.
+We are checking the k values up to square root of training data set length i.e sqrt(3000) ~ 55
+
+```{r}
+accuracy_data <- data.frame(k = seq(1,55,1), accuracy = rep (0, 55))
+
+for(i in 1:55){
+  knn_pred <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=i)
+  accuracy_data[i,2] <- confusionMatrix(knn_pred, Valid_Outcome)$overall[1]
+}
+View(accuracy_data)
+
+best_k <- accuracy_data[which.max(accuracy_data$accuracy),]
+best_k
+```
+
+Thus the Best K value for the optimal Solution of KNN here is K=4
+
+Q. 3.)Show the confusion matrix for the validation data that results from using the best k.
+
+  * Create Confusion Matrix
+
+```{r}
+knn_test_k <- knn(Train_Data, Valid_Data, cl=Train_Outcome, k=best_k$k, prob = TRUE)
+View(knn_test_k)
+
+CrossTable(x = Valid_Outcome, y = knn_test_k, prop.chisq = FALSE)
+```
+
+The calculated Accuracy for KNN mmodel with optimal k (k=4) is 96.64 %
+
+Q. 4.) Consider the following customer: Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1 and Credit Card = 1. Classify the customer using the best k.
+
+  * Test the KNN model using hypertuned k value for test data. Here k=4
+
+```{r}
+BEST_KNN_TEST <- knn(Train_Data, Test_Data, cl=Train_Outcome, k=best_k$k, prob = TRUE)
+BEST_KNN_TEST
+```
+
+  * Using the optimal k=4 the status for customers loan acceptance status is as ACCEPTED
+
+  * The Optimal solution for the KNN model is by using the Total data set and then applying the model.
+
+i.e. KNN over Complete Dataset
+
+```{r}
+Total_knn <- knn(Train_Data, Total_Data, cl=Train_Outcome, k=best_k$k, prob = TRUE)
+#Total_knn
+
+CrossTable(x = Total_Outcome, y = Total_knn, prop.chisq = FALSE)
+```
+
+The Accuracy for KNN modelfor the Total Dataset is 97.52% 
+
+Q. 5.) Repartition the data, this time into training, validation, and test sets (50% : 30% : 20%). Apply the k-NN method with the k chosen above. Compare the confusion matrix of the test set with that of the training and validation sets. Comment on the differences and their reason.
+
+  * Partition Data in 50-30-20 % training-validation-test format using the Age as the Partition Variable
+
+```{r}
+Test_Data_Index_2 <- createDataPartition(UniversalBank_Object$Age, p = 0.2, list = FALSE)
+
+Testing_Data_2 <- UniversalBank_Object[Test_Data_Index_2,]
+
+Travel_Data_2 <- UniversalBank_Object[-Test_Data_Index_2,]
+
+Training_Data_Index_2 <- createDataPartition(Travel_Data_2$Age, p = 0.625, list = FALSE)
+
+Training_Data_2 <- Travel_Data_2[Training_Data_Index_2,]
+
+Validation_Data_2 <- Travel_Data_2[-Training_Data_Index_2,]
+
+dim(Training_Data_2)
+dim(Validation_Data_2)
+dim(Testing_Data_2)
+```
+
+  * After the partition of the data we need to Normalize the data. Here, we are normalizing the data using Center and Scale transformation in with the transformation takes place using Mean and Standard Deviation. 
+
+  * Normalization (Same as for Q 1)
+
+```{r}
+norm.values <- preProcess(Training_Data_2, method = c ("center", "scale"))
+
+train.norm.df_2 <- predict(norm.values, Training_Data_2)
+
+Valid.norm.df_2 <- predict(norm.values, Validation_Data_2)
+
+test.norm.df_2 <- predict(norm.values, Testing_Data_2)
+
+Total.norm.df_2 <- predict(norm.values, UniversalBank_Object)
+```
+
+  * Differentiate Predictors and Prediction data. Here the Predictive data is the Personal.Loan Variable and factorising the values as Deny and Accept instead of 0 and 1, whereas the Predictors are all the other variables from the dataset.
+
+```{r}
+Train_Data_2 <- train.norm.df_2[,-7]
+Train_Outcome_2 <- factor(Training_Data_2[,7], levels = c(0,1), labels = c("Deny","Accept"))
+
+Valid_Data_2 <- Valid.norm.df_2[,-7]
+Valid_Outcome_2 <- factor(Validation_Data_2[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+
+Test_Data_2 <- test.norm.df_2[,-7]
+Test_Outcome_2<- factor(Testing_Data_2[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+
+Total_Data_2 <- Total.norm.df_2[,-7]
+Total_Outcome_2 <- factor(UniversalBank_Object[,7], levels = c(0,1), labels = c("Deny", "Accept"))
+```
+
+  * Apply KNN on Training and Validation set with the optimal k value (k=4), later on Training and Test set and Finally on the entire dataset.
+
+```{r}
+knn_Validation <- knn(Train_Data_2, Valid_Data_2, cl=Train_Outcome_2, k=best_k$k, prob = TRUE)
+View(knn_obj)
+
+CrossTable(x = Valid_Outcome_2, y = knn_Validation, prop.chisq = FALSE)
+
+knn_Testing <- knn(Train_Data_2, Test_Data_2, cl=Train_Outcome_2, k=best_k$k,prob = TRUE)
+knn_test
+
+CrossTable(x = Test_Outcome_2, y = knn_Testing, prop.chisq = FALSE)
+```
+
+The Accuracy for the Validation Data is: 95.79439252336449 %
+
+The Accuracy for the Testing Data is: 95.004995004995 %
+
+```{r}
+Total_knn_2 <- knn(Train_Data_2, Total_Data_2, cl = Train_Outcome_2, k=best_k$k, prob = TRUE)
+View(Total_knn_2)
+
+CrossTable(x = Total_Outcome_2, y = Total_knn_2, prop.chisq = FALSE)
+```
+
+Accuracy using total data is 96.68 %
+
+We can see that the Accuracy value keeps on changing as we apply the the model to different dataset. The change in the accuracy may be due to the partition biased. The data in the each of the partitioned dataset is different and biased can occur due to type of Attribute we choose to partition the dataset.

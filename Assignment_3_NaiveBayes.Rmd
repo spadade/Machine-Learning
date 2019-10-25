@@ -1,0 +1,141 @@
+---
+title: "Machine Learning Assignment 3 - Naive Bayes Classification"
+author: "SrushtiP"
+date: "10/24/2019"
+output: html_document
+---
+
+Problem Statment:
+
+Predicting flight delays can be useful to a variety of organizations. Here,
+we look at five predictors. The outcome of interest is whether or not the flight is delayed (delayed here means
+arrived more than 15 minutes late). Our data consist of all flights from the Washington, DC area into the New York City area during January 2004. A record is a particular flight. The percentage of delayed flights among these 2201 flights
+is 19.5%. The data were obtained from the Bureau of Transportation Statistics (available on the web at www.transtats.bts.gov). The goal is to accurately predict whether or not a new flight (not in this dataset), will be delayed. The outcome variable is whether the flight was delayed, and thus it has two classes (1 = delayed
+and 0 = on time).
+
+  * Libraries required during the assignment.
+
+```{r}
+library(ISLR)
+library(caret)
+library(dummies)
+library(gmodels)
+library(pROC)
+library(e1071)
+```
+
+  * Reading the Data File and storing in Data Vsriable.
+
+  * As described in the problem statment factoring the catagorical variable DAY_OF_MONTHS, CRS_DEP_TIME and DAY_WEEK.
+
+```{r}
+Data <- read.csv("FlightDelays.csv")
+
+Data$DAY_OF_MONTH <- factor(Data$DAY_OF_MONTH)
+Data$DAY_WEEK <- factor(Data$DAY_WEEK, levels = c(1,2,3,4,5,6,7), labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+Data$CRS_DEP_TIME <- cut(Data$CRS_DEP_TIME, breaks = seq(500,2300,100), labels = c("6 AM Interval", "7 AM Interval", "8 AM Interval", "9 AM Interval", "10 AM Interval", "11 AM Interval", "12 PM Interval", "1 PM Interval", "2 PM Interval", "3 PM Interval", "4 PM Interval", "5 PM Interval", "6 PM Interval", "7 PM Interval", "8 PM Interval", "9 PM Interval", "10 PM Interval","11 PM Interval"))
+Data$CRS_DEP_TIME <- factor(Data$CRS_DEP_TIME)
+```
+
+Q 1) Divide the data into 60% training and 40% validation
+
+  * Selecting the Catagorical data only for the Naive Bayes Model.
+    DAY_WEEK, CRS_DEP_TIME, DEST, ORIGIN, CARRIER, Flight.Status.
+
+  * Partitioning the data into 60% Training and 40% Validation.
+
+```{r}
+Data <- Data[, c(10, 1, 8, 4, 2, 13)]
+
+View(Data)
+summary(Data)
+
+set.seed(20)
+Train_Index <- createDataPartition(Data$DEST, p= 0.6, list = FALSE)
+
+Train <- Data[Train_Index,]
+dim(Train)
+
+Valid <- Data[-Train_Index,]
+dim(Valid)
+```
+
+Q 2) Run the Naive Bayes model to predict whether the flight is delayed or not. Use only categorical variables for the predictor variables. Note that Week and Time variables need to recoded as factors
+
+  * The factoring the data is performed above and the Naives bayes Classification is applied here to the training data.
+
+```{r}
+nb_model <- naiveBayes(Flight.Status~DAY_WEEK+CRS_DEP_TIME+ORIGIN+DEST+CARRIER, data=Train)
+nb_model
+```
+
+Above is the output of the Naive Bayes Classification i.e. Conditional Probabilities is displayed for the Flight Status over each Catagorical Variable factor.
+
+Q 3) Output both a counts table and a proportion table outlining how many and what proportion of flights were delayed and on-time at each of the three airports.
+
+  * To get the Proportion of the Flight status at each Destination location using the table finction and prop.table.
+
+```{r}
+Flight_Delay_Status_at_Dest<- table(Train$Flight.Status, Train$DEST)
+Flight_Delay_Status_at_Dest
+
+prop.table(Flight_Delay_Status_at_Dest, margin = 2)
+```
+
+Q 4) Output the confusion matrix and ROC for the validation data.
+
+  * Using the Naive Bayes model built on training data we apply this model on the validation data.
+    Here, we are getting the type = class (default) where the maximum probability is considered.
+
+```{r}
+Predict_Valid_Label <- predict(nb_model, Valid)
+CrossTable(x = Valid$Flight.Status, y = Predict_Valid_Label, prop.chisq = FALSE)
+
+confusionMatrix(Predict_Valid_Label,Valid$Flight.Status)
+```
+
+Accuracy of the Cross table  for the Naive Bayes Model on Validation Data is 81.48 %
+
+  * Now, using the type = raw the ROC is generated which consideres all the probabilities of the data model classes.
+
+```{r}
+Predict_Valid_Label_Raw <- predict(nb_model, Valid, type = "raw")
+head(Predict_Valid_Label_Raw)
+
+roc(Valid$Flight.Status, Predict_Valid_Label_Raw[,2])
+plot.roc(Valid$Flight.Status, Predict_Valid_Label_Raw[,2])
+```
+
+  * Naive Bayes for the Complete Data without partitions:
+
+```{r}
+Predict_Total_Label <- predict(nb_model, Data)
+CrossTable(x = Data$Flight.Status, y = Predict_Total_Label, prop.chisq = FALSE)
+
+confusionMatrix(Predict_Total_Label, Data$Flight.Status)
+
+Predict_Total_Label_Raw <- predict(nb_model, Data, type = "raw")
+
+roc(Data$Flight.Status, Predict_Total_Label_Raw[,2])
+plot.roc(Data$Flight.Status, Predict_Total_Label_Raw[,2])
+```
+
+Hence, the final output for the model can be determined using the complete data.
+
+  * HyperTuning
+
+Here I have used the BoxCox, center and scale normalization technique for the dataset.
+
+```{r}
+nb_model_Hypertune <- naiveBayes(Flight.Status~DAY_WEEK+CRS_DEP_TIME+ORIGIN+DEST+CARRIER, data=Train, preProc = c("center", "scale","BoxCox"))
+nb_model_Hypertune
+
+Predict_Hypertuned_Valid <- predict(nb_model_Hypertune, Valid)
+head(Predict_Hypertuned_Valid)
+
+CrossTable(x= Valid$Flight.Status, y = Predict_Hypertuned_Valid, prop.chisq = FALSE)
+confusionMatrix(Predict_Hypertuned_Valid, Valid$Flight.Status)
+```
+
+The Hypertuning helps obtain an optimal solution.
