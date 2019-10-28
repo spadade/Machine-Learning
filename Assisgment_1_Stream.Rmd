@@ -1,0 +1,187 @@
+---
+title: "Machine Learning Assignment 1"
+author: "SrushtiP"
+date: "10/27/2019"
+output: html_document
+---
+
+Problem Statement:
+
+This assignment will concentrate on using R and Git. Specifically, you will do the following:
+
+- Download a dataset from the web. You may use any source, but specify the source in your code. 
+  Also ensure that the data has a mix of quantitative and qualitative (categorical) variables.
+- Import the dataset into R
+- Print out descriptive statistics for a selection of quantitative and categorical variables.
+- Transform at least one variable. It doesn't matter what the transformation is.
+- Plot at least one quantitative variable, and one scatterplot
+
+* Source of DataSet: 
+
+* https://dasl.datadescription.com/datafiles/?_sfm_cases=4+59943&sort_order=modified+desc&sf_paged=9
+
+
+To import the dataset in R.
+
+```{r}
+Stream_Statistics <- read.csv("Streams.csv")
+```
+
+To inspect your data: head() Prints the 1st 5 entries of each column and tail() Prints the last 5 entries of each column.
+
+```{r}
+head(Stream_Statistics, 5)
+
+tail(Stream_Statistics, 5)
+```
+
+* Descriptive Statistics of the dataset
+
+Summmary() helps describe the data statistics of each column.
+
+If the column is a numeric variable, mean, median, min, max and quartiles are returned.
+If the column is a factor variable, the number of observations in each group is returned.
+
+```{r}
+summary(Stream_Statistics)
+```
+
+1. Mean : The Arithmetic Mean is the average of the numbers or a calculated "central" value of a set of numbers.
+
+```{r}
+mean(Stream_Statistics$pH)
+```
+
+2. Median : The middle value. It’s a robust alternative to mean.
+
+```{r}
+median(Stream_Statistics$Temp)
+```
+
+3. Mode : The most frequent value
+
+```{r}
+require(modeest)
+mfv(Stream_Statistics$pH)
+```
+
+4. Variance : The variance represents the average squared deviation from the mean.
+
+```{r}
+var(Stream_Statistics$Hard)
+```
+
+5. Standard Deviation : The standard deviation is the square root of the variance. It measures the average deviation of the values, in the data, from the mean value.
+
+```{r}
+sd(Stream_Statistics$Alkali)
+```
+
+6. Absolute Deviation : The median absolute deviation (MAD) measures the deviation of the values, in the data, from the median value.
+
+```{r}
+mad(Stream_Statistics$Phosphate)
+```
+
+7. Minimum Value : Provides the minimum value of the specified column
+
+```{r}
+min(Stream_Statistics$Hard)
+```
+
+8. Maximum Value : Provides the maximum value of the specified column
+
+```{r}
+max(Stream_Statistics$Alkali)
+```
+
+9. Which is the row with minimum of the desired column
+
+```{r}
+Stream_Statistics[which.min(Stream_Statistics$Hard),]
+```
+
+10. Which is the row with maximum of the desired column
+
+```{r}
+Stream_Statistics[which.max(Stream_Statistics$Alkali),]
+```
+
+11. Range: Range corresponds to biggest value minus the smallest value. It gives you the full spread of the data.
+
+```{r}
+range(Stream_Statistics$Temp)
+```
+
+12. Quantile : quartiles divide the data into 4 parts.
+
+The interquartile range (IQR) - corresponding to the difference between the first and third quartiles - is sometimes used as a robust alternative to the standard deviation.
+
+```{r}
+quantile(Stream_Statistics$Phosphate)
+IQR(Stream_Statistics$Phosphate)
+```
+
+* Transformation
+
+Transforming data is one step in addressing data that do not fit model assumptions, and is also used to coerce different variables to have similar distributions.
+
+rcompanion- Library require for function plotNormalHistogram
+
+Histogram for pH value
+
+```{r}
+library(rcompanion)
+
+plotNormalHistogram(Stream_Statistics$pH, main = "Normal pH")
+```
+
+1. Square Root Transformation
+
+```{r}
+Sq_Trans = sqrt(Stream_Statistics$pH)
+print("Square transformation of pH")
+print(head(Sq_Trans), 5)
+
+plotNormalHistogram(Sq_Trans, main = "Square Root Transformed pH")
+```
+
+2. Cube Root Transformation
+
+```{r}
+C_Trans = abs(Stream_Statistics$pH)^(1/3)
+print("Cube Transformation of pH")
+print (head(C_Trans),5)
+
+plotNormalHistogram(C_Trans, main = "Cube Root Transformed pH")
+```
+
+3. Log Transformation
+
+```{r}
+log_Trans = log(Stream_Statistics$pH)
+print("Log Transformation of pH")
+print(head(log_Trans), 5)
+
+plotNormalHistogram(log_Trans, main = "Log Root Transformed pH")
+```
+
+* Graphical Representation
+
+1. Boxplot
+
+```{r}
+plot(Stream_Statistics$Substrate, Stream_Statistics$pH, xlab = "Substrate", ylab = "pH", main = "Substrate vs pH of Streams")
+```
+
+2. Bar Chart - Plotted a graph of number of different substrate
+
+```{r}
+barplot(table(Stream_Statistics$Substrate), xlab = "Substrate", ylab = "Count", main = "Count of Substrate")
+```
+
+3. Scatter Plot
+
+```{r}
+plot.default(Stream_Statistics$pH, Stream_Statistics$Hard, xlab = "pH of Stream", ylab = "Hardness", main = "pH vs Hardness of different Stream Water")
+```
