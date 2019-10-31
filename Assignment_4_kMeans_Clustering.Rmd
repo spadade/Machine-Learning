@@ -1,0 +1,267 @@
+---
+title: "Assignment_4_kMeans_Clustering"
+author: "SrushtiP"
+date: "10/27/2019"
+output: html_document
+---
+
+Problem Statement:
+
+The dataset on American College and University Rankings contains information on 1302 American colleges and universities offering an undergraduate program. For each university, there are 17 measurements, including continuous measurements (such as tuition and grad- uation rate) and categorical measurements (such as location by state and whether it is a private or public school).
+Note that many records are missing some measurements. 
+
+kMeans Clustering : It is an unsupervised learning algorithm. K-means algorithm identifies k number of centroids, and then allocates every data point to the nearest cluster, while keeping the centroids as small as possible.
+
+* The libraries required to proceed with the solution by implementing the k Means Clustering algorithm.
+
+```{r}
+library(ISLR)
+library(dplyr)
+library(tidyverse)
+library(factoextra)
+library(flexclust)
+```
+
+The data file Universities.csv is read below and the data is stored in a variable.
+
+```{r}
+University <- read.csv("Universities.csv")
+
+University$Public..1...Private..2. <- factor(University$Public..1...Private..2., levels = c(1,2), labels = c("Public","Private")) 
+```
+
+* The Data related to "Tufts University" is stored in a variable and the missing value of PT undergrade is replaced by the average value of the all the PT undergrade value from complete dataset.
+
+```{r}
+Tufts_university <- University[which(University$College.Name == "Tufts University"),]
+
+Tufts_university$X..PT.undergrad <- mean(University$X..PT.undergrad, na.rm = TRUE)
+```
+
+Q 1.) Remove all records with missing measurements from the dataset.
+
+* There are lots of missing value in the dataset thus to compute the clustering algorithm we have to remove the missing records from the dataset.
+
+```{r}
+University <- na.omit(University)
+summary(University)
+```
+
+As per the descriptive statistics we can see that the NA values are all removes and number of observations are reduced from 1302 to 471 observations.
+
+Q 2.) For all the continuous measurements, run K-Means clustering. Make sure to normalize the measurements. How many clusters seem reasonable for describing these data? What was your optimal K?
+
+* To normalized the dataset we have scale the continuous variables of the date by its z-score.
+
+```{r}
+Normalized_University <- scale(University[c(-1,-2,-3)])
+```
+
+To compute the optimal k value we can use:
+
+* With-In-Sum-Of-Squares (WSS) method. WSS is a measure to explain the homogeneity within a cluster. WSS is the total distance of data points from their respective cluster centroids
+
+* Average Silhouette measures the quality of a clustering,it determines how well each object lies within its cluster. A high average silhouette width indicates a good clustering.
+
+```{r}
+fviz_nbclust(Normalized_University, kmeans, method = "wss")
+fviz_nbclust(Normalized_University, kmeans, method = "silhouette")
+```
+
+Here if we look carefully, the optimal solution for k value iscomputed as 3. Therefore, we can now use this k = 3 to apply the k means clustering algorithm on the dataset.
+However considering thecatagorical measurements the reasonable number of cluster to be formed should be 2 for Private College and Public Colleges.
+
+Q 3.) Compare the summary statistics for each cluster and describe each cluster in this context (e.g., “Universities with high tuition, low acceptance rate...”).
+
+```{r}
+k_means <- kmeans(Normalized_University, centers = 3, nstart = 50)
+
+View(k_means$centers)
+k_means$size
+
+fviz_cluster(k_means, data = Normalized_University)
+```
+
+Based on the computed summary of the clusters we can predict the below conclusions:
+
+* Cluster 1 : Below Average College.
+
+Applications received - Low
+Application Accepted - Low
+New Enrollement - Low
+Percentage of new students from top 10% - Low
+Percentage of new students from top 25% - Low
+Full Time undergrade - Low
+Part Time undergrade - Low
+In state tution - Average
+Out state tution - Average
+Room Cost - Average
+Boards - Average
+Additional fees - Low
+Estimated Book Cost - Low
+Estimated Personal Expenses - Average
+Faculty with PHD - Average
+Student/Facult Ratio - Average
+Graduation Rate - Low
+
+
+Cluster 2 : Average College.
+
+Applications received - High
+Application Accepted - High
+New Enrollement - High
+Percentage of new students from top 10% - Average
+Percentage of new students from top 25% - Average
+Full Time undergrade - High
+Part Time undergrade - High
+In state tution - Average
+Out state tution - Average
+Room Cost - Low
+Boards - Low
+Additional fees - High
+Estimated Book Cost - High
+Estimated Personal Expenses - High
+Faculty with PHD - Low
+Student/Facult Ratio - High
+Graduation Rate - Average
+
+
+* Cluster 3 : Best Average.
+
+Applications received - Average
+Application Accepted - Average
+New Enrollement - Average
+Percentage of new students from top 10% - High
+Percentage of new students from top 25% - High
+Full Time undergrade - Average
+Part Time undergrade - Average
+In state tution - High
+Out state tution - High
+Room Cost - High
+Boards - High
+Additional fees - Average
+Estimated Book Cost - Average
+Estimated Personal Expenses - Low
+Faculty with PHD - High
+Student/Facult Ratio - Low
+Graduation Rate - High
+
+Hence based on the above calculations we can predict that the Universities in the Cluster 3 can be Best Universities to study at, average universities will be in Cluster 2 and Below Average universities would be in Cluster 3.
+
+Q 4.)	Use the categorical measurements that were not used in the analysis (State and Private/Public) to characterize the different clusters. Is there any relationship between the clusters and the categorical information?
+
+* To determine the relationship between the clusters and the catagorical data we have bind the column with the University Dataset.
+
+```{r}
+University_kMeans <- cbind(University, Cluster_Status = k_means$cluster)
+
+University_kMeans$Cluster_Status <- factor(University_kMeans$Cluster_Status, levels = c(1,2,3), labels = c("Below Average Colleges","Average Colleges", "Best Colleges"))
+
+head(University_kMeans)
+```
+
+* Applications received by the College in cluster 2 are the Highest followed by cluster 3 and least in Cluster 1
+* Application Accepted by Colleges in Cluster 2 are highest followed by Cluster 3 and least in Cluster 1.
+* New Enrollement is highest in Cluster 2 Colleges followed by cluster 3 colleges and least in Cluster 1.
+* Percentage of new students from top 10% is highest in Cluster 3, medium in Cluster 2 and least in Cluster 1.
+* Percentage of new students from top 25% is highest in Cluster 3, medium in Cluster 2 and least in Cluster 1.
+* Full Time undergrade is high in cluster 2, medium in cluster 3 and least in cluster 1.
+* Part Time undergrade is high in cluster 2, medium in cluster 1 and least in cluster 3.
+* In state tution is highest at Colleges in Cluster 3, average in Cluster 1 and low in cluster 2.
+* Out state tution is highest at Colleges in Cluster 3, average in Cluster 1 and low in cluster 2.
+* Room Cost is highest for Colleges in Cluster 3, average in Cluster 1 and low in cluster 2.
+* Boards have highest value in Cluster 3, average in Cluster 1 and low in cluster 2.
+* Additional fees are high in Colleges in Cluster 2, average in Cluster 3 and low at Cluster 1.
+* Estimated Book Cost are high in Colleges in Cluster 2, average in Cluster 3 and low at Cluster 1.
+* Estimated Personal Expenses highest value in Cluster 3, average in Cluster 1 and low in cluster 2.
+* Faculty with PHD highest value in Cluster 3, average in Cluster 2 and low in cluster 1.
+* Student/Facult Ratio highest value in Cluster 2, average in Cluster 1 and low in cluster 3.
+* Graduation Rate highest value in Cluster 3, average in Cluster 2 and low in cluster 1.
+
+The data is determined in the tabular format and the relationship between the Catagorical mesurements within the clusters are presented.
+
+```{r}
+table(University_kMeans$State, University_kMeans$Cluster_Status)
+
+table(University_kMeans$Public..1...Private..2., University_kMeans$Cluster_Status)
+```
+
+* Here we can see that the Most of the Public colleges falls under the Cluster 3 which we have determined as the "Best Colleges", whereas Cluster 2 i.e. "Average Colleges" are mostly the Private Colleges and Cluster 1 i.e. "Below Average Colleges" have both Public and Private Colleges based all the other measurements.
+
+* Also we can see the States with the number of colleges with its ranking type like which states have good colleges.
+
+Q 5.) What other external information can explain the contents of some or all of these clusters?
+
+```{r}
+Below_Average_Universities <- University_kMeans[University_kMeans$Cluster_Status == "Below Average Colleges", c(1,2,3,21)]
+View(Below_Average_Universities)
+
+Average_Universities <- University_kMeans[University_kMeans$Cluster_Status == "Average Colleges", c(1,2,3,21)]
+View(Average_Universities)
+
+Best_Universities <- University_kMeans[University_kMeans$Cluster_Status == "Best Colleges", c(1,2,3,21)]
+View(Best_Universities)
+
+prop.table(table(University_kMeans$Public..1...Private..2., University_kMeans$Cluster_Status))*100
+```
+
+* We can see that there are only 8.70% Best Public Colleges where as 1.06 % Best Private College.
+
+* Most of the Average Colleges are Private Colleges i.e. 31.21%.
+
+* Also we can see that the there is high number of good colleges are located in the States of New York, Pensalvannia, Ohio, California.
+
+```{r}
+k_means$totss
+
+k_means$withinss
+
+k_means$betweenss
+
+k_means$iter
+```
+
+* Total-Sum-of-Squares (TSS): TSS is the total distance of data points from global mean of data, for a given dataset this quantity is going to be constant
+  = 7990
+
+* With-in-Sum-of-Squares (WSS): WSS is the total distance of data points from their respective cluster centroid
+  = Cluster 1 : 2562.342, Cluster 2 : 1424.892, Cluster 3 : 1044.680 
+
+* Between-Sum-of-Squares (BSS): BSS is the total weighted distance of various cluster centroids to the global mean of data
+  = 2958.086
+
+* Iter: The number of (outer) iterations
+  = 3
+
+
+Q 6.) Consider Tufts University, which is missing some information. Compute the Euclidean distance of this record from each of the clusters that you found above (using only the measurements that you have). Which cluster is it closest to? Impute the missing values for Tufts by taking the average of the cluster on those measurements.
+
+* Here, we have added a row of Tufts University which we have computed above and added the mean value of the data in place of the missing values in the dataset.
+
+```{r}
+Data <- rbind(University, Tufts_university)
+dim(Data)
+```
+
+* The data needs to be normalized based on the same method (scale i.e. z-score) as the kMeans Model we have computed above.
+
+```{r}
+Data_normalized <- scale(Data[c(-1,-2,-3)])
+```
+
+* We have computed the distance of all the dataset.
+
+```{r}
+Distance_Tuft <- get_dist(Data_normalized)
+fviz_dist(Distance_Tuft)
+```
+
+* Applying the kMeans Clustering Model with optimal k = 3. Later, we have bind the Tufts University data with the cluster it falls under after the k means Clustering model is applied 
+
+```{r}
+k_means_Tufts <- kmeans(Data_normalized, centers = 3, nstart = 50)
+
+cbind(Tufts_university, Cluster = tail(k_means_Tufts$cluster, 1))
+```
+
+Hence we can see that the the Tufts university falls under the Cluster 3 which is one the Best College.
