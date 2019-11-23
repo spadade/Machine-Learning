@@ -1,0 +1,218 @@
+---
+title: "Machine Learning - Heirarchical Clustering"
+author: "SrushtiP"
+date: "11/10/2019"
+output:
+  html_document: default
+---
+
+Problem Statement:
+
+The dataset Cereals.csv includes nutritional information, store display, and consumer ratings for 77 breakfast cereals.
+
+Data Preprocessing. Remove all cereals with missing values
+
+Libraries required throughout the assignment.
+
+```{r}
+library(ISLR)
+library(cluster)
+library(factoextra)
+library(analogue)
+library(Rfast)
+library(GGally)
+```
+
+Reading  the data from the dataset and changing the Name column as the row name.
+
+```{r}
+Data <- read.csv("Cereals.csv")
+
+rownames(Data) <- Data$name
+Data <- Data[-1]
+
+View(Data)
+```
+
+Normalisation of the data is usually performed on the quantitative data. Hence, here we are normalizing the quantitative data and keeping the catagorical variables as it is.
+
+```{r}
+Norm_Data <- scale(Data[c(-1,-2,-12)])
+```
+
+Omititng the NA values from the dataset.
+
+```{r}
+Norm_Data <- as.data.frame(na.omit(Norm_Data))
+summary(Norm_Data) 
+```
+
+1. ) Apply hierarchical clustering to the data using Euclidean distance to the normalized measurements. Use Agnes to compare the clustering from  single linkage, complete linkage, average linkage, and Ward. Choose the best method.
+
+```{r}
+SL <- agnes(Norm_Data, method = "single")
+
+AL <- agnes(Norm_Data, method = "average")
+
+CL <- agnes(Norm_Data, method = "complete")
+
+WL <- agnes(Norm_Data, method = "ward")
+
+cbind.data.frame(SL$ac, AL$ac, CL$ac, WL$ac)
+```
+
+As we look at the above linkages, we can see that the Agglomerative coefficients of Ward Linkage is highest. Hence we can use the Ward linkage to form the clusters.
+
+We are using the Euclideans Distance to compute the distance and assign elements to each cluster.
+
+```{r}
+Euclidean_dist <- dist(Norm_Data, method = "euclidean")
+Dist_Ward <- hclust(Euclidean_dist, method = "ward.D")
+```
+
+Plotting the dendrogram of the Ward's
+
+```{r}
+pltree(WL, cex = 0.6, hang = -1, main = "Dendrogram of Agnes")
+```
+
+2.)	How many clusters would you choose?
+
+Now, we plot the dendrogram and try to find the optimal value for k.
+
+Lets consider K = 2:
+
+```{r}
+plot(Dist_Ward, cex = 0.6, hang = -1)
+rect.hclust(Dist_Ward, k = 2, border = 1:2)
+```
+
+Using k = 2, we can see that the content of each cluster is almost same which cannot distinguish any cluster. Thus k = 2 may not be a good choice.
+
+Now, consider k = 4:
+
+```{r}
+plot(Dist_Ward, cex = 0.5, hang = -1)
+rect.hclust(Dist_Ward, k = 6, border = 1:6)
+```
+
+Here considering k= 6, we are facing a problem with uneveness of the nutrients content so the cluster formed and not exactly optimal clusters. Thus, k = 6 is also not a good choice.
+
+Now let us consider k = 4:
+
+```{r}
+plot(Dist_Ward, cex = 0.5, hang = -1)
+rect.hclust(Dist_Ward, k = 4, border = 1:4)
+```
+
+As discussed above, the height of each branch in the dendrogram represents the nutrition level of the various cereals. As Clustering takes place considering all the paramenters, here which are the nutrient contents in cereals. Using k=6 the height show stability with all the clusters i.e. between 10 to 20.
+Also, the Cereal distribution is fair. we can distinguish the type of cereals for all the cluters.
+Thus k = 4 canbe considers a good choice as number of clusters.
+
+```{r}
+Cluster_group <- cutree(Dist_Ward, k = 4)
+table(Cluster_group)
+
+clustered_Data <- cbind.data.frame(Norm_Data, Cluster_group)
+```
+
+The table represents the cereals in each clusters.
+
+3.)	Comment on the structure of the clusters and on their stability. Hint: To check stability,  partition the data and see how well clusters formed based on one part apply to the other part. To do this:
+
+  1.	Cluster partition A
+  
+Here we have partitioned the data in 80 - 20 % format.
+
+```{r}
+Train_Data <- Norm_Data[1:60,]
+Test_Data <- Norm_Data[61:74,]
+```
+
+  2.	Use the cluster centroids from A to assign each record in partition B (each record is assigned to the cluster with the closest centroid).
+
+```{r}
+Euclidean_dist_Train <- dist(Train_Data, method = "euclidean")
+Dist_Ward_Train <- hclust(Euclidean_dist_Train, method = "ward.D")
+
+plot(Dist_Ward_Train, cex = 0.6, hang = -2)
+rect.hclust(Dist_Ward_Train, k = 4, border = 1:4)
+
+Cluster_group_Train <- cutree(Dist_Ward_Train, k = 4)
+table(Cluster_group_Train)
+
+Train_Data <- cbind.data.frame(Train_Data, Cluster_group_Train)
+```
+
+Here we are calculating the centriods for each cluster and storing them together so that we can calculate the distance between each data of test set and all centroids.
+
+The cluster with minimum of its centroid and test set distance will be the cluster of the respective test set.
+
+```{r}
+Centroid_1 <- colMeans(Train_Data[Train_Data$Cluster_group_Train == "1",])
+Centroid_2 <- colMeans(Train_Data[Train_Data$Cluster_group_Train == "2",])
+Centroid_3 <- colMeans(Train_Data[Train_Data$Cluster_group_Train == "3",])
+Centroid_4 <- colMeans(Train_Data[Train_Data$Cluster_group_Train == "4",])
+
+Centroid <- rbind(Centroid_1, Centroid_2, Centroid_3, Centroid_4)
+
+TestData_Centroid <- rowMins(distance(Test_Data, Centroid[,-13]))
+
+Partition_Centroid <- c(Train_Data$Cluster_group_Train,TestData_Centroid)
+
+clustered_Data<- cbind(clustered_Data,Partition_Centroid)
+```
+
+  3.	Assess how consistent the cluster assignments are compared to the assignments based on all the data.
+
+```{r}
+table(clustered_Data$Cluster_group == clustered_Data$Partition_Centroid)
+
+table(clustered_Data$Cluster_group[61:74] == clustered_Data$Partition_Centroid[61:74])
+```
+
+The table here represents comparision number of data from the previously calculated clustering and one with the partition data.
+
+The consistency of the dataset when used the entire data set is 70.03%
+Whereasthe consistency of the dataset with test data is 85.87%.
+
+4.)	The elementary public schools would like to choose a set of cereals to include in their daily cafeterias. Every day a different cereal is offered, but all cereals should support a healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.” Should the data be normalized? If not, how should they be used in the cluster analysis?
+
+Here we are calculating the centriods for the entire dataset.
+
+```{r}
+Centroid1 <- colMeans(clustered_Data[clustered_Data$Cluster_group == "1",])
+Centroid2 <- colMeans(clustered_Data[clustered_Data$Cluster_group == "2",])
+Centroid3 <- colMeans(clustered_Data[clustered_Data$Cluster_group == "3",])
+Centroid4 <- colMeans(clustered_Data[clustered_Data$Cluster_group == "4",])
+
+Centroid_all <- rbind(Centroid1, Centroid2, Centroid3, Centroid4)
+View(Centroid_all)
+```
+
+The plot represents the average value of each nutrient contents based on entire dataset
+
+```{r}
+ggparcoord(Centroid_all,
+           columns = 1:12, groupColumn = 13,
+           showPoints = TRUE, 
+           title = "Parallel Coordinate Plot for for Cereal Data - K = 4",
+           alphaLines = 0.5
+)
+
+```
+
+Comparing the Dendograms there are 1 cluters formed. So based on the height of the nutrient contents in each of the cluster we can see that the nutrition is higher in cluster 1.
+
+Also, by looking at the Parallel Coordinate Plot, Cluster 1 staisfies most the healthy cereals requirement as compared to the other clusters.
+The Calories, fat, sodium and sugar are lower than the remaining clusters, whereas fiber contents and the customer ratings are higher. 
+Hence, the elementary public schools will probably like to choose cluster 1 cereals as 'Healthy cereals' to include in their daily cafeterias.
+
+```{r}
+Breakfast <- clustered_Data[clustered_Data$Cluster_group == '1',]
+
+row.names(Breakfast)
+```
+
+Hence, the above cereals should be included in the breakfast meal plan for the school.
+
